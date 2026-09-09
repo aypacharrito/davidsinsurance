@@ -1,5 +1,5 @@
 "use client";
-import {FormEvent,useState} from "react";
+import {FormEvent,useRef,useState} from "react";
 type Coverage="auto"|"home"|"life";type LifeType="term"|"whole"|"final"|"unsure";
 const lifeAmounts:Record<LifeType,string[]>={term:["$100,000","$250,000","$500,000","$750,000","$1,000,000","$1,500,000","$2,000,000","Not sure"],whole:["$10,000","$25,000","$50,000","$100,000","$250,000","$500,000","Not sure"],final:["$5,000","$10,000","$15,000","$20,000","$25,000","$30,000","$40,000","$50,000","Not sure"],unsure:["$25,000","$50,000","$100,000","$250,000","$500,000","$1,000,000","Not sure"]};
 
@@ -8,6 +8,37 @@ export default function Contact(){
  const[lifeType,setLifeType]=useState<LifeType>("term");
  const[status,setStatus]=useState<"idle"|"sending"|"success"|"error">("idle");
  const[msg,setMsg]=useState("");
+ const[dobText,setDobText]=useState("");
+ const dobPickerRef=useRef<HTMLInputElement>(null);
+
+ function dateToDisplay(value:string){
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+   const [year,month,day]=value.split("-");
+   return `${month}/${day}/${year}`;
+ }
+
+ function displayToDate(value:string){
+   const match=value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+   if(!match) return "";
+   const [,month,day,year]=match;
+   return `${year}-${month}-${day}`;
+ }
+
+ function normalizeDobTyping(value:string){
+   const digits=value.replace(/\D/g,"").slice(0,8);
+   if(digits.length<=2) return digits;
+   if(digits.length<=4) return `${digits.slice(0,2)}/${digits.slice(2)}`;
+   return `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`;
+ }
+
+ function openDobPicker(){
+   const picker=dobPickerRef.current;
+   if(!picker) return;
+   const nativeValue=displayToDate(dobText);
+   if(nativeValue) picker.value=nativeValue;
+   if(typeof picker.showPicker==="function") picker.showPicker();
+   else picker.click();
+ }
  async function submit(e:FormEvent<HTMLFormElement>){
    e.preventDefault(); const form=e.currentTarget; setStatus("sending"); setMsg("");
    try{
@@ -15,7 +46,7 @@ export default function Contact(){
      const r=await fetch("/api/quote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
      const j=await r.json().catch(()=>({}));
      if(!r.ok) throw new Error(j.error||"We could not send your request.");
-     setStatus("success");setMsg("Quote request received. David will contact you shortly.");form.reset();setCoverage("auto");setLifeType("term");
+     setStatus("success");setMsg("Quote request received. David will contact you shortly.");form.reset();setDobText("");setCoverage("auto");setLifeType("term");
    }catch(err){setStatus("error");setMsg(err instanceof Error?err.message:"We could not send your request. Please try again.");}
  }
  return <section className="inner shell"><p className="eyebrow">Get a personalized quote</p><h1>Request a quote.</h1><div className="contact-grid"><div><p className="lead">Share a few details and we’ll contact you to review coverage options. No obligation.</p><div className="contact-list"><a href="tel:+18005424242"><small>Call</small>1-800-542-4242</a><a href="mailto:davidscarinsurance@gmail.com"><small>Email</small>davidscarinsurance@gmail.com</a><div><small>Office</small>14445 Victory Blvd.<br/>Van Nuys, CA 91401</div></div></div>
@@ -23,7 +54,65 @@ export default function Contact(){
  <fieldset className="coverage-picker"><legend>What would you like to insure?</legend><div>{(["auto","home","life"] as Coverage[]).map(item=><button key={item} type="button" className={coverage===item?"active":""} onClick={()=>setCoverage(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}</div><input type="hidden" name="insurance-type" value={coverage}/></fieldset>
  <div className="form-section-title">Contact information</div>
  <label>Full name<input required name="full-name" autoComplete="name"/></label>
- <label>Date of birth<input required type="date" name="date-of-birth" autoComplete="bday"/></label>
+ <label>
+   Date of birth
+   <span style={{position:"relative",display:"block"}}>
+     <input
+       required
+       type="text"
+       name="date-of-birth"
+       value={dobText}
+       onChange={e=>setDobText(normalizeDobTyping(e.target.value))}
+       autoComplete="bday"
+       inputMode="numeric"
+       placeholder="MM/DD/YYYY"
+       pattern="(?:0[1-9]|1[0-2])/(?:0[1-9]|[12]\d|3[01])/\d{4}"
+       title="Enter date of birth as MM/DD/YYYY"
+       style={{paddingRight:"46px"}}
+     />
+     <button
+       type="button"
+       onClick={openDobPicker}
+       aria-label="Choose date of birth from calendar"
+       title="Choose date"
+       style={{
+         position:"absolute",
+         right:"8px",
+         top:"50%",
+         transform:"translateY(-50%)",
+         width:"32px",
+         height:"32px",
+         display:"grid",
+         placeItems:"center",
+         padding:0,
+         border:"0",
+         background:"transparent",
+         cursor:"pointer",
+         color:"currentColor"
+       }}
+     >
+       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+         <path d="M7 3v3M17 3v3M4.5 9h15M6.5 5h11a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+       </svg>
+     </button>
+     <input
+       ref={dobPickerRef}
+       type="date"
+       tabIndex={-1}
+       aria-hidden="true"
+       onChange={e=>setDobText(dateToDisplay(e.target.value))}
+       style={{
+         position:"absolute",
+         width:"1px",
+         height:"1px",
+         opacity:0,
+         pointerEvents:"none",
+         right:0,
+         bottom:0
+       }}
+     />
+   </span>
+ </label>
  <label>Phone number<input required type="tel" name="phone" autoComplete="tel"/></label>
  <label>Email address<input required type="email" name="email" autoComplete="email"/></label>
  <label className="wide">Home address<input required name="address" autoComplete="street-address" placeholder="Street, city, state, ZIP"/></label>

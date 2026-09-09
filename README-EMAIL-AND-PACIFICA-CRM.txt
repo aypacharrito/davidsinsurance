@@ -50,3 +50,13 @@ You STILL need ONE shared secret in the David's Insurance Vercel project:
 PACIFICA_CRM_WEBHOOK_SECRET=<the actual value of LEAD_WEBHOOK_SECRET from the Pacifica CRM Vercel project>
 
 The code will also accept LEAD_WEBHOOK_SECRET directly if you prefer to use the same environment variable name in both Vercel projects.
+
+
+DOB UPDATE
+The Date of Birth field now supports BOTH:
+- typing MM/DD/YYYY directly
+- tapping the calendar icon to choose a date
+
+Picking from the calendar automatically converts the value to MM/DD/YYYY.
+Typing is formatted automatically as the user enters numbers.
+The value still submits under the same `date-of-birth` field to email and Pacifica CRM.
