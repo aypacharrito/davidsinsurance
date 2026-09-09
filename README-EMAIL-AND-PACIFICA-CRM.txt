@@ -38,3 +38,15 @@ After adding/updating the variables, redeploy DavidsInsurance.org.
 
 BEHAVIOR IF PACIFICA IS TEMPORARILY DOWN
 The website retries the CRM delivery once. If the email succeeds but Pacifica is temporarily unavailable, the customer still sees success so they do not submit duplicates; the CRM failure is written to the Vercel server logs.
+
+
+EXACT PACIFICA CONFIG FOR YOUR ACCOUNT
+The patch now defaults to this exact Pacifica inbound URL:
+https://pacificacrm.com/api/integrations/leads?workspace=user_3IO1vkCV5ltKY8npgIoZpwKrQTV&source=David%27s%20Insurance%20Website
+
+So PACIFICA_CRM_LEAD_URL is optional.
+
+You STILL need ONE shared secret in the David's Insurance Vercel project:
+PACIFICA_CRM_WEBHOOK_SECRET=<the actual value of LEAD_WEBHOOK_SECRET from the Pacifica CRM Vercel project>
+
+The code will also accept LEAD_WEBHOOK_SECRET directly if you prefer to use the same environment variable name in both Vercel projects.

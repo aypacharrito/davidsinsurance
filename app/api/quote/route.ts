@@ -49,8 +49,10 @@ const esc=(s:string)=>
 const validEmail=(s:string)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
 async function sendToPacifica(data:Record<string,string>) {
-  const url=process.env.PACIFICA_CRM_LEAD_URL?.trim();
-  const secret=process.env.PACIFICA_CRM_WEBHOOK_SECRET?.trim();
+  const url=(process.env.PACIFICA_CRM_LEAD_URL?.trim() ||
+    "https://pacificacrm.com/api/integrations/leads?workspace=user_3IO1vkCV5ltKY8npgIoZpwKrQTV&source=David%27s%20Insurance%20Website");
+  const secret=(process.env.PACIFICA_CRM_WEBHOOK_SECRET?.trim() ||
+    process.env.LEAD_WEBHOOK_SECRET?.trim());
 
   if(!url||!secret){
     console.warn("Pacifica CRM lead sync is not configured.");
