@@ -1,0 +1,11 @@
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -24,7 +24,7 @@
+       <div className="shell hero-grid">
+         <div>
+           <p className="eyebrow">Local insurance help in Van Nuys, California</p>
+-          <h1>Good coverage.<br/><em>Better value.</em></h1>
++          <h1>Same coverage.<br/><em>Better value.</em></h1>
+           <p className="hero-copy">Tell us what you need and we’ll do the work. We compare your options, explain them clearly, and help you find coverage that fits your needs and your budget.</p>
+           <div className="actions">
+             <a className="button primary" href="tel:+18005424242">Call 1-800-542-4242</a>
