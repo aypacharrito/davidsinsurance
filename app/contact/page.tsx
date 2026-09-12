@@ -5,6 +5,7 @@ const lifeAmounts:Record<LifeType,string[]>={term:["$100,000","$250,000","$500,0
 
 export default function Contact(){
  const[coverage,setCoverage]=useState<Coverage>("auto");
+ const[driverCount,setDriverCount]=useState(0);
  const[vehicleCount,setVehicleCount]=useState(1);
  const[autoType,setAutoType]=useState("personal");
  const[lifeType,setLifeType]=useState<LifeType>("term");
@@ -49,12 +50,19 @@ export default function Contact(){
        data.vehicles=Array.from({length:vehicleCount},(_,i)=>Object.fromEntries(
          ["vin","year","makeModel","use","annualMiles"].map(field=>[field,data[`vehicle-${i+1}-${field}`]||""])
        ));
+       data["additional-driver-count"]=String(driverCount);
+       for(let i=0;i<driverCount;i++) {
+         for(const [field,label] of Object.entries({firstName:"First name",lastName:"Last name",dob:"Date of birth",relationship:"Relationship",licenseNumber:"License number",licenseState:"License state or country"})) {
+           data[`Additional driver ${i+1} ${label}`]=data[`driver-${i+1}-${field}`]||"";
+         }
+       }
+       for(const key of Object.keys(data)) if(/^driver-\d+-/.test(key)) delete data[key];
        for(const key of Object.keys(data)) if(/^vehicle-\d+-/.test(key)) delete data[key];
      }
      const r=await fetch("/api/quote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
      const j=await r.json().catch(()=>({}));
      if(!r.ok) throw new Error(j.error||"We could not send your request.");
-     setStatus("success");setMsg("Quote request received. David will contact you shortly.");form.reset();setDobText("");setCoverage("auto");setLifeType("term");setVehicleCount(1);setAutoType("personal");
+     setStatus("success");setMsg("Quote request received. David will contact you shortly.");form.reset();setDobText("");setCoverage("auto");setLifeType("term");setDriverCount(0);setVehicleCount(1);setAutoType("personal");
    }catch(err){setStatus("error");setMsg(err instanceof Error?err.message:"We could not send your request. Please try again.");}
  }
  return <section className="inner shell"><p className="eyebrow">Get a personalized quote</p><h1>Request a quote.</h1><div className="contact-grid"><div><p className="lead">Share a few details and we’ll contact you to review coverage options. No obligation.</p><div className="contact-list"><a href="tel:+18005424242"><small>Call</small>1-800-542-4242</a><a href="mailto:davidscarinsurance@gmail.com"><small>Email</small>davidscarinsurance@gmail.com</a><div><small>Office</small>14445 Victory Blvd.<br/>Van Nuys, CA 91401</div></div></div>
@@ -139,7 +147,21 @@ export default function Contact(){
  <label>Estimated annual miles<input name={`vehicle-${i+1}-annualMiles`} type="number" min="0" step="1" placeholder="12000"/></label>
  </fieldset>)}
  <label>Current insurer<input name="current-insurer" placeholder="If currently insured" autoComplete="off"/></label>
- <label>Additional drivers?<select name="additional-auto"><option>No</option><option>Yes</option></select></label>
+ <label>Additional drivers?<select name="additional-auto" value={driverCount?"Yes":"No"} onChange={e=>setDriverCount(e.target.value==="Yes"?1:0)}><option>No</option><option>Yes</option></select></label>
+ {driverCount>0&&<>
+ <p className="wide form-note">Add anyone else who will drive the vehicles. Your contact information above is for the primary driver.</p>
+ {Array.from({length:driverCount},(_,i)=><fieldset key={i} className="wide" style={{border:"1px solid #d6dee8",borderRadius:12,padding:16,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,220px),1fr))",gap:16,minWidth:0}}>
+ <legend>Additional driver {i+1}</legend>
+ <label>First name<input required name={`driver-${i+1}-firstName`} autoComplete="off" pattern={".*\\S.*"}/></label>
+ <label>Last name<input required name={`driver-${i+1}-lastName`} autoComplete="off" pattern={".*\\S.*"}/></label>
+ <label>Date of birth<input required type="date" name={`driver-${i+1}-dob`}/></label>
+ <label>Relationship to primary driver<select name={`driver-${i+1}-relationship`}><option>Spouse / partner</option><option>Child</option><option>Parent</option><option>Other household member</option><option>Employee</option><option>Other</option></select></label>
+ <label>License number (if available)<input name={`driver-${i+1}-licenseNumber`} autoComplete="off"/></label>
+ <label>License state or country (if available)<input name={`driver-${i+1}-licenseState`} placeholder="e.g. California" autoComplete="off"/></label>
+ </fieldset>)}
+ <div className="wide" style={{display:"flex",gap:12,flexWrap:"wrap"}}><button className="button" type="button" disabled={driverCount>=5} onClick={()=>setDriverCount(n=>Math.min(5,n+1))}>+ Add another driver</button><button className="button" type="button" onClick={()=>setDriverCount(n=>Math.max(0,n-1))}>Remove last driver</button></div>
+ {driverCount===5&&<p className="wide form-note">For more than five additional drivers, include the remaining details in the notes or call us.</p>}
+ </>}
  </>}
  {coverage==="home"&&<><div className="form-section-title">Property information</div><label className="wide">Property address<input required name="property-address" placeholder="If different from home address" autoComplete="street-address"/></label><label>Property type<select name="property-type"><option>Single-family home</option><option>Condo</option><option>Townhome</option><option>Rental property</option></select></label><label>Occupancy<select name="occupancy"><option>Primary residence</option><option>Secondary residence</option><option>Tenant occupied</option><option>Vacant</option></select></label><label>Year built<input name="year-built" inputMode="numeric"/></label><label>Approximate square footage<input name="square-footage" inputMode="numeric"/></label><label>Current insurer<input name="current-home-insurer" placeholder="If currently insured" autoComplete="off"/></label><label>Claims in the last 5 years?<select name="home-claims"><option>No</option><option>Yes</option></select></label></>}
  {coverage==="life"&&<><div className="form-section-title">Coverage information</div><label>Type of life insurance<select name="life-type" value={lifeType} onChange={e=>setLifeType(e.target.value as LifeType)}><option value="term">Term life</option><option value="whole">Whole life</option><option value="final">Final expense</option><option value="unsure">Not sure yet</option></select></label><label>Coverage amount<select name="coverage-amount" key={lifeType}>{lifeAmounts[lifeType].map(amount=><option key={amount}>{amount}</option>)}</select></label>{lifeType==="term"&&<label>Term length<select name="term-length"><option>10 years</option><option>15 years</option><option>20 years</option><option>25 years</option><option>30 years</option><option>40 years</option><option>Not sure</option></select></label>}<label>Primary purpose<select name="coverage-purpose"><option>Income replacement</option><option>Mortgage protection</option><option>Final expenses</option><option>Family protection</option><option>Legacy or estate planning</option><option>Not sure</option></select></label><label>Tobacco or nicotine use?<select name="tobacco-use"><option>No</option><option>Yes</option></select></label><label>General health<select name="general-health"><option>Excellent</option><option>Good</option><option>Fair</option><option>Prefer to discuss</option></select></label><label>Height<input name="height" placeholder="5 ft 10 in"/></label><label>Weight<input name="weight" inputMode="numeric" placeholder="lbs"/></label><label>Existing life insurance?<select name="existing-life-insurance"><option>No</option><option>Yes</option></select></label></>}

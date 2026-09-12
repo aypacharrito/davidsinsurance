@@ -25,5 +25,22 @@ export function normalizeQuoteRequest(body:Record<string,unknown>){
     data['vehicle-vin']=vehicles[0].vin;data['vehicle-year']=vehicles[0].year;data.vehicle=vehicles[0].makeModel;
     data['vehicle-use']=vehicles[0].use;data['annual-miles']=vehicles[0].annualMiles;
   }
+  const count=Number(data['additional-driver-count']||0);
+  if(data['insurance-type']==='auto'&&data['additional-auto']==='Yes'){
+    if(!Number.isInteger(count)||count<1||count>5)throw new Error('Please add between 1 and 5 additional drivers.');
+    for(let i=1;i<=count;i++){
+      const prefix=`Additional driver ${i} `;
+      if(!data[prefix+'First name']||!data[prefix+'Last name'])throw new Error(`Please enter first and last names for additional driver ${i}.`);
+      const dob=data[prefix+'Date of birth'];
+      const parsed=new Date(`${dob}T00:00:00Z`);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(dob||'')||!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==dob||parsed.getTime()>Date.now())throw new Error(`Please enter a valid date of birth for additional driver ${i}.`);
+    }
+  }else data['additional-driver-count']='0';
+  // Only selected drivers may reach the email or CRM; discard removed/stale entries.
+  const activeCount=data['insurance-type']==='auto'&&data['additional-auto']==='Yes'?count:0;
+  for(const key of Object.keys(data)){
+    const match=key.match(/^Additional driver (\d+) /);
+    if(match&&(Number(match[1])<1||Number(match[1])>activeCount))delete data[key];
+  }
   return {data,vehicles};
 }
