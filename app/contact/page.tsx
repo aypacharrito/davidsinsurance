@@ -5,6 +5,8 @@ const lifeAmounts:Record<LifeType,string[]>={term:["$100,000","$250,000","$500,0
 
 export default function Contact(){
  const[coverage,setCoverage]=useState<Coverage>("auto");
+ const[vehicleCount,setVehicleCount]=useState(1);
+ const[autoType,setAutoType]=useState("personal");
  const[lifeType,setLifeType]=useState<LifeType>("term");
  const[status,setStatus]=useState<"idle"|"sending"|"success"|"error">("idle");
  const[msg,setMsg]=useState("");
@@ -42,18 +44,25 @@ export default function Contact(){
  async function submit(e:FormEvent<HTMLFormElement>){
    e.preventDefault(); const form=e.currentTarget; setStatus("sending"); setMsg("");
    try{
-     const data=Object.fromEntries(new FormData(form).entries());
+     const data:Record<string,unknown>=Object.fromEntries(new FormData(form).entries());
+     if(coverage==="auto") {
+       data.vehicles=Array.from({length:vehicleCount},(_,i)=>Object.fromEntries(
+         ["vin","year","makeModel","use","annualMiles"].map(field=>[field,data[`vehicle-${i+1}-${field}`]||""])
+       ));
+       for(const key of Object.keys(data)) if(/^vehicle-\d+-/.test(key)) delete data[key];
+     }
      const r=await fetch("/api/quote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
      const j=await r.json().catch(()=>({}));
      if(!r.ok) throw new Error(j.error||"We could not send your request.");
-     setStatus("success");setMsg("Quote request received. David will contact you shortly.");form.reset();setDobText("");setCoverage("auto");setLifeType("term");
+     setStatus("success");setMsg("Quote request received. David will contact you shortly.");form.reset();setDobText("");setCoverage("auto");setLifeType("term");setVehicleCount(1);setAutoType("personal");
    }catch(err){setStatus("error");setMsg(err instanceof Error?err.message:"We could not send your request. Please try again.");}
  }
  return <section className="inner shell"><p className="eyebrow">Get a personalized quote</p><h1>Request a quote.</h1><div className="contact-grid"><div><p className="lead">Share a few details and we’ll contact you to review coverage options. No obligation.</p><div className="contact-list"><a href="tel:+18005424242"><small>Call</small>1-800-542-4242</a><a href="mailto:davidscarinsurance@gmail.com"><small>Email</small>davidscarinsurance@gmail.com</a><div><small>Office</small>14445 Victory Blvd.<br/>Van Nuys, CA 91401</div></div></div>
  <form className="form quote-form" onSubmit={submit} autoComplete="on">
  <fieldset className="coverage-picker"><legend>What would you like to insure?</legend><div>{(["auto","home","life"] as Coverage[]).map(item=><button key={item} type="button" className={coverage===item?"active":""} onClick={()=>setCoverage(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}</div><input type="hidden" name="insurance-type" value={coverage}/></fieldset>
  <div className="form-section-title">Contact information</div>
- <label>Full name<input required name="full-name" autoComplete="name"/></label>
+ <label>First name<input required name="first-name" autoComplete="given-name" pattern={".*\\S.*"}/></label>
+ <label>Last name<input required name="last-name" autoComplete="family-name" pattern={".*\\S.*"}/></label>
  <label>
    Date of birth
    <span style={{position:"relative",display:"block"}}>
@@ -116,7 +125,22 @@ export default function Contact(){
  <label>Phone number<input required type="tel" name="phone" autoComplete="tel"/></label>
  <label>Email address<input required type="email" name="email" autoComplete="email"/></label>
  <label className="wide">Home address<input required name="address" autoComplete="street-address" placeholder="Street, city, state, ZIP"/></label>
- {coverage==="auto"&&<><div className="form-section-title">Vehicle information</div><label className="wide">Vehicle VIN<input required name="vehicle-vin" maxLength={17} placeholder="17-character VIN" autoCapitalize="characters" autoComplete="off"/></label><label>Vehicle year<input required name="vehicle-year" inputMode="numeric" placeholder="2022"/></label><label>Make and model<input required name="vehicle" placeholder="Toyota Camry"/></label><label>Primary use<select name="vehicle-use"><option>Commute</option><option>Pleasure</option><option>Business</option></select></label><label>Estimated annual miles<input name="annual-miles" inputMode="numeric" placeholder="12,000"/></label><label>Current insurer<input name="current-insurer" placeholder="If currently insured" autoComplete="off"/></label><label>Additional drivers or vehicles?<select name="additional-auto"><option>No</option><option>Yes</option></select></label></>}
+ {coverage==="auto"&&<>
+ <div className="form-section-title">Auto coverage</div>
+ <label>Personal or commercial?<select name="auto-type" value={autoType} onChange={e=>setAutoType(e.target.value)}><option value="personal">Personal Auto</option><option value="commercial">Commercial Auto</option></select></label>
+ <label>How many vehicles?<select name="vehicle-count" value={vehicleCount} onChange={e=>setVehicleCount(Number(e.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n} value={n}>{n} {n===1?"vehicle":"vehicles"}</option>)}</select></label>
+ {autoType==="commercial"&&<><label>Business name<input required name="business-name" autoComplete="organization"/></label><label>Business type / operations<input required name="business-type" placeholder="e.g. plumbing, delivery, construction"/></label><label className="wide">Business address<input required name="business-address" autoComplete="street-address"/></label></>}
+ {Array.from({length:vehicleCount},(_,i)=><fieldset key={i} className="wide" style={{border:"1px solid #d6dee8",borderRadius:12,padding:16,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,220px),1fr))",gap:16,minWidth:0}}>
+ <legend>Vehicle {i+1}</legend>
+ <label>VIN<input required name={`vehicle-${i+1}-vin`} minLength={17} maxLength={17} pattern="[A-HJ-NPR-Za-hj-npr-z0-9]{17}" title="Enter the 17-character VIN (no I, O, or Q)" placeholder="17-character VIN" autoCapitalize="characters" autoComplete="off"/></label>
+ <label>Year<input required name={`vehicle-${i+1}-year`} inputMode="numeric" pattern="[0-9]{4}" placeholder="2022"/></label>
+ <label>Make and model<input required name={`vehicle-${i+1}-makeModel`} placeholder="Toyota Camry"/></label>
+ <label>Primary use<select name={`vehicle-${i+1}-use`} defaultValue="Commute"><option>Commute</option><option>Pleasure</option><option>Business</option><option>Delivery</option><option>Rideshare</option></select></label>
+ <label>Estimated annual miles<input name={`vehicle-${i+1}-annualMiles`} type="number" min="0" step="1" placeholder="12000"/></label>
+ </fieldset>)}
+ <label>Current insurer<input name="current-insurer" placeholder="If currently insured" autoComplete="off"/></label>
+ <label>Additional drivers?<select name="additional-auto"><option>No</option><option>Yes</option></select></label>
+ </>}
  {coverage==="home"&&<><div className="form-section-title">Property information</div><label className="wide">Property address<input required name="property-address" placeholder="If different from home address" autoComplete="street-address"/></label><label>Property type<select name="property-type"><option>Single-family home</option><option>Condo</option><option>Townhome</option><option>Rental property</option></select></label><label>Occupancy<select name="occupancy"><option>Primary residence</option><option>Secondary residence</option><option>Tenant occupied</option><option>Vacant</option></select></label><label>Year built<input name="year-built" inputMode="numeric"/></label><label>Approximate square footage<input name="square-footage" inputMode="numeric"/></label><label>Current insurer<input name="current-home-insurer" placeholder="If currently insured" autoComplete="off"/></label><label>Claims in the last 5 years?<select name="home-claims"><option>No</option><option>Yes</option></select></label></>}
  {coverage==="life"&&<><div className="form-section-title">Coverage information</div><label>Type of life insurance<select name="life-type" value={lifeType} onChange={e=>setLifeType(e.target.value as LifeType)}><option value="term">Term life</option><option value="whole">Whole life</option><option value="final">Final expense</option><option value="unsure">Not sure yet</option></select></label><label>Coverage amount<select name="coverage-amount" key={lifeType}>{lifeAmounts[lifeType].map(amount=><option key={amount}>{amount}</option>)}</select></label>{lifeType==="term"&&<label>Term length<select name="term-length"><option>10 years</option><option>15 years</option><option>20 years</option><option>25 years</option><option>30 years</option><option>40 years</option><option>Not sure</option></select></label>}<label>Primary purpose<select name="coverage-purpose"><option>Income replacement</option><option>Mortgage protection</option><option>Final expenses</option><option>Family protection</option><option>Legacy or estate planning</option><option>Not sure</option></select></label><label>Tobacco or nicotine use?<select name="tobacco-use"><option>No</option><option>Yes</option></select></label><label>General health<select name="general-health"><option>Excellent</option><option>Good</option><option>Fair</option><option>Prefer to discuss</option></select></label><label>Height<input name="height" placeholder="5 ft 10 in"/></label><label>Weight<input name="weight" inputMode="numeric" placeholder="lbs"/></label><label>Existing life insurance?<select name="existing-life-insurance"><option>No</option><option>Yes</option></select></label></>}
  <label className="wide optional-note">Anything else we should know?<textarea name="notes" rows={3} placeholder="Optional"/></label>

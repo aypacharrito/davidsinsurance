@@ -1,3 +1,4 @@
+import {normalizeQuoteRequest} from "../../../lib/quote-request";
 import {NextRequest,NextResponse} from "next/server";
 
 export const runtime="nodejs";
@@ -48,7 +49,7 @@ const esc=(s:string)=>
 
 const validEmail=(s:string)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
-async function sendToPacifica(data:Record<string,string>) {
+async function sendToPacifica(data:Record<string,string>,vehicles:ReturnType<typeof normalizeQuoteRequest>["vehicles"]) {
   const url=(process.env.PACIFICA_CRM_LEAD_URL?.trim() ||
     "https://pacificacrm.com/api/integrations/leads?workspace=user_3IO1vkCV5ltKY8npgIoZpwKrQTV&source=David%27s%20Insurance%20Website");
   const secret=(
@@ -64,6 +65,8 @@ async function sendToPacifica(data:Record<string,string>) {
 
   const payload={
     ...data,
+    vehicles,
+    product:data["insurance-type"]==="auto"?(data["auto-type"]==="commercial"?"Commercial Auto":"Personal Auto"):data["insurance-type"],
     source:"David's Insurance Website",
     brand:"David's Insurance",
     disposition:"Received - not worked yet",
@@ -124,10 +127,10 @@ export async function POST(req:NextRequest){
       return NextResponse.json({error:"Invalid form data."},{status:400});
     }
 
-    const data:Record<string,string>={};
-    for(const [k,v] of Object.entries(body as Record<string,unknown>)){
-      data[k]=clean(v);
-    }
+    let normalized:ReturnType<typeof normalizeQuoteRequest>;
+    try { normalized=normalizeQuoteRequest(body); }
+    catch(error) { return NextResponse.json({error:error instanceof Error?error.message:"Invalid quote request."},{status:400}); }
+    const {data,vehicles}=normalized;
 
     const name=clean(data["full-name"],120);
     const email=clean(data.email,254);
@@ -149,7 +152,7 @@ export async function POST(req:NextRequest){
     }
 
     // Start CRM delivery immediately while we build/send the email.
-    const crmPromise=sendToPacifica(data);
+    const crmPromise=sendToPacifica(data,vehicles);
 
     const rows=Object.entries(data)
       .filter(([,v])=>v!=="")
